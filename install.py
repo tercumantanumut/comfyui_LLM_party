@@ -18,71 +18,6 @@ def get_python_version():
         return None
 
 
-def latest_lamacpp(system_info):
-    try:
-        response = get("https://api.github.com/repos/abetlen/llama-cpp-python/releases")
-        releases = response.json()
-        for release in releases:
-            tag_name = release["tag_name"].lower()
-            if system_info.get("gpu", False):
-                if "cu" in tag_name:
-                    return release["tag_name"].replace("v", "")
-            elif system_info.get("metal", False):
-                if "metal" in tag_name:
-                    return release["tag_name"].replace("v", "")
-            else:
-                if "cu" not in tag_name and "metal" not in tag_name:
-                    return release["tag_name"].replace("v", "")
-        return "0.2.20"
-    except Exception:
-        return "0.2.20"
-
-
-def install_llama_package(package_name, custom_command=None):
-    try:
-        if not package_is_installed(package_name):
-            print(f"Installing {package_name}...")
-            command = [sys.executable, "-m", "pip", "install", package_name, "--no-cache-dir"]
-            if custom_command:
-                command += custom_command.split()
-            subprocess.check_call(command)
-        else:
-            print(f"{package_name} is already installed.")
-    except subprocess.CalledProcessError as e:
-        print(f"Failed to install {package_name}: {e}")
-
-
-def package_is_installed(package_name):
-    try:
-        importlib.metadata.version(package_name)
-        return True
-    except importlib.metadata.PackageNotFoundError:
-        return False
-
-def install_llama(system_info):
-    try:
-        imported = package_is_installed("llama-cpp-python") or package_is_installed("llama_cpp")
-        if imported:
-            print("llama-cpp installed")
-        else:
-            
-            if system_info.get("gpu", False):
-                cuda_version = system_info["cuda_version"]
-                custom_command = f"--index-url  https://abetlen.github.io/llama-cpp-python/whl/{cuda_version}/"
-                print(f"{cuda_version}:" + custom_command+"\n如果下载速度太慢，请直接到这个链接里下载轮子，然后手动安装。\nIf the download speed is too slow, please go directly to this link to download the wheel and install it manually.")
-            elif system_info.get("metal", False):
-                custom_command = f"--index-url  https://abetlen.github.io/llama-cpp-python/whl/metal/"
-                print("mps:" + custom_command+"\n如果下载速度太慢，请直接到这个链接里下载轮子，然后手动安装。\nIf the download speed is too slow, please go directly to this link to download the wheel and install it manually.")
-            else:
-                custom_command = f"--index-url  https://abetlen.github.io/llama-cpp-python/whl/cpu/"
-                print("cpu:" + custom_command+"\n如果下载速度太慢，请直接到这个链接里下载轮子，然后手动安装。\nIf the download speed is too slow, please go directly to this link to download the wheel and install it manually.")
-            
-            install_llama_package("llama-cpp-python", custom_command=custom_command)
-    except Exception as e:
-        print(f"Error installing llama-cpp-python: {e}")
-
-
-
 def get_system_info():
     system_info = {
         "gpu": False,
@@ -120,10 +55,12 @@ def get_system_info():
 
     # 使用PyTorch检查macOS上的Metal支持
     if system_info["os"] == "Darwin":
-        if torch.backends.mps.is_available():
-            system_info["metal"] = True
-        else:
-            system_info["metal"] = False
+        if importlib.util.find_spec("torch"):
+            import torch
+            if torch.backends.mps.is_available():
+                system_info["metal"] = True
+            else:
+                system_info["metal"] = False
 
     # 确定平台标签
     if importlib.util.find_spec("packaging.tags"):
@@ -165,6 +102,7 @@ def init_temp():
     current_dir_path = os.path.dirname(os.path.abspath(__file__))
     os.makedirs(os.path.join(current_dir_path, "temp"), exist_ok=True)
 
+
 def install_homebrew():
     try:
         result = subprocess.run(["brew", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -179,6 +117,7 @@ def install_homebrew():
     except subprocess.CalledProcessError as e:
         print(f"Error checking Homebrew installation: {e}")
         return False
+
 
 def install_portaudio():
     try:
@@ -269,4 +208,8 @@ def manage_discord_packages():
         print("py-cord[voice] is already installed")
 
 
-
+def package_is_installed(package_name):
+    try:
+        importlib.metadata.version(package_name)
+        return True
+    except importlib.metadata.P
